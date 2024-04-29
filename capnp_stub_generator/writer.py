@@ -31,7 +31,7 @@ InitChoice = Tuple[str, str, bool]
 class Writer:
     """A class that handles writing the stub file, based on a provided module definition."""
 
-    VALID_TYPING_IMPORTS = Literal["Iterator", "Generic", "TypeVar", "Sequence", "Literal", "Union", "overload"]
+    VALID_TYPING_IMPORTS = Literal["Iterator", "Generic", "TypeVar", "Sequence", "MutableSequence", "Literal", "Union", "overload"]
 
     def __init__(self, module: ModuleType, module_registry: capnp_types.ModuleRegistryType):
         """Initialize the stub writer with a module definition.
@@ -252,6 +252,7 @@ class Writer:
             list_depth = len(nested_list_elements)
 
         self._add_typing_import("Sequence")
+        self._add_typing_import("MutableSequence")
 
         hinted_variable = helper.TypeHintedVariable(
             field.name, [helper.TypeHint(type_name, primary=True)], nesting_depth=list_depth
@@ -520,7 +521,7 @@ class Writer:
                 parameters=["self", f'name: Literal["{field_name}"]']
                 if is_sequence:
                     parameters.append("count: int")
-                    return_type = f"Sequence[{field_type}]"
+                    return_type = f"MutableSequence[{field_type}]"
                 self.scope.add(
                     helper.new_function(
                         "init", parameters=parameters, return_type=return_type

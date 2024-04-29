@@ -229,6 +229,8 @@ class Writer:
             list_depth = len(nested_schema_elements)
             new_type = self.get_type_by_id(last_element.node.id)
             type_name = new_type.scoped_name
+            if last_element.node.which() == "enum":
+                create_extended_types = False
 
         except (AttributeError, IndexError):
             # An attribute error indicates that the last element was not registered as a type, as it is a basic type.
@@ -237,7 +239,8 @@ class Writer:
 
             try:
                 self.generate_nested(last_element)
-
+                if last_element.node.which() == "enum":
+                    create_extended_types = False
             except AttributeError:
                 # This is a built-in type and does not require generation.
                 create_extended_types = False

@@ -25,7 +25,7 @@ capnp.remove_import_hook()
 
 logger = logging.getLogger(__name__)
 
-InitChoice = Tuple[str, str]
+InitChoice = Tuple[str, str, bool]
 
 
 class Writer:
@@ -140,7 +140,7 @@ class Writer:
         field_slot_type = field.slot.type.which()
 
         if field_slot_type == capnp_types.CapnpElementType.LIST:
-            hinted_variable = self.gen_list_slot(field, raw_field.schema)
+            hinted_variable = self.gen_list_slot(field, raw_field.schema, init_choices)
 
         elif field_slot_type in capnp_types.CAPNP_TYPE_TO_PYTHON:
             hinted_variable = self.gen_python_type_slot(field, field_slot_type)
@@ -162,7 +162,7 @@ class Writer:
         return hinted_variable
 
     def gen_list_slot(
-        self, field: capnp.lib.capnp._DynamicStructReader, schema: capnp.lib.capnp._ListSchema
+        self, field: capnp.lib.capnp._DynamicStructReader, schema: capnp.lib.capnp._ListSchema, init_choices: list[InitChoice]
     ) -> helper.TypeHintedVariable:
         """Generate a slot, which contains a `list`.
 
@@ -261,6 +261,8 @@ class Writer:
             hinted_variable.add_builder_from_primary_type()
             hinted_variable.add_reader_from_primary_type()
 
+        init_choices.append((field.name, type_name, True))
+
         return hinted_variable
 
     def gen_python_type_slot(
@@ -318,7 +320,7 @@ class Writer:
             self.gen_struct(schema)
 
         type_name = self.get_type_name(field.slot.type)
-        init_choices.append((field.name, type_name))
+        init_choices.append((field.name, type_name, False))
         return helper.TypeHintedVariable(field.name, [helper.TypeHint(type_name, primary=True)])
 
     def gen_any_pointer_slot(
@@ -482,7 +484,7 @@ class Writer:
                 hinted_variable.add_type_scope(type_name)
 
                 slot_fields.append(hinted_variable)
-                init_choices.append((field.name, group_name))
+                init_choices.append((field.name, group_name, False))
 
             else:
                 raise AssertionError(f"{schema.node.displayName}: {field.name}: " f"{field.which()}")
@@ -510,13 +512,18 @@ class Writer:
             if use_overload:
                 self._add_typing_import("overload")
 
-            for field_name, field_type in init_choices:
+            for field_name, field_type, is_sequence in init_choices:
                 if use_overload:
                     self.scope.add(helper.new_decorator("overload"))
 
+                return_type = field_type
+                parameters=["self", f'name: Literal["{field_name}"]']
+                if is_sequence:
+                    parameters.append("count: int")
+                    return_type = f"Sequence[{field_type}]"
                 self.scope.add(
                     helper.new_function(
-                        "init", parameters=["self", f'name: Literal["{field_name}"]'], return_type=field_type
+                        "init", parameters=parameters, return_type=return_type
                     )
                 )
 

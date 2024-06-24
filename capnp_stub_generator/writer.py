@@ -572,7 +572,9 @@ class Writer:
         )
 
         self.scope.add(helper.new_decorator("staticmethod"))
-        self.scope.add(helper.new_function("new_message", return_type=scoped_new_builder_type_name))
+        params=["*"]
+        params.extend(f"{field.name}=..." for field in schema.node.struct.fields)
+        self.scope.add(helper.new_function("new_message", parameters=params, return_type=scoped_new_builder_type_name))
         self.scope.add(helper.new_function("to_dict", parameters=["self"], return_type="dict"))
 
         self._add_import("from io import BufferedWriter")
